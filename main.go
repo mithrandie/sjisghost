@@ -11,7 +11,7 @@ import (
 	"golang.org/x/text/transform"
 )
 
-var version = "v0.1.0"
+var version = "v0.1.1"
 
 func main() {
 	app := cli.NewApp()
@@ -26,14 +26,7 @@ func main() {
 			Usage:     "Encode UTF-8 text to garbled Shift-JIS text",
 			ArgsUsage: "text",
 			Action: func(c *cli.Context) error {
-				if c.NArg() != 1 {
-					return cli.NewExitError("too many arguments", 1)
-				}
-
-				input := c.Args().First()
-				s := encode(input)
-				fmt.Println(s)
-				return nil
+				return convert(c, getEncodeReader)
 			},
 		},
 		{
@@ -41,14 +34,7 @@ func main() {
 			Usage:     "Decode garbled Shift-JIS text to UTF-8",
 			ArgsUsage: "text",
 			Action: func(c *cli.Context) error {
-				if c.NArg() != 1 {
-					return cli.NewExitError("too many arguments", 1)
-				}
-
-				input := c.Args().First()
-				s := decode(input)
-				fmt.Println(s)
-				return nil
+				return convert(c, getDecodeReader)
 			},
 		},
 	}
@@ -56,14 +42,27 @@ func main() {
 	app.Run(os.Args)
 }
 
-func encode(s string) string {
-	r := transform.NewReader(strings.NewReader(s), japanese.ShiftJIS.NewDecoder())
-	b, _ := ioutil.ReadAll(r)
-	return string(b)
+func convert(c *cli.Context, getReader func(string) *transform.Reader) error {
+	if c.NArg() != 1 {
+		return cli.NewExitError("too many arguments", 1)
+	}
+
+	input := c.Args().First()
+	r := getReader(input)
+	b, e := ioutil.ReadAll(r)
+	if 0 < len(b) {
+		fmt.Println(string(b))
+	}
+	if e != nil {
+		return cli.NewExitError(e.Error(), 1)
+	}
+	return nil
 }
 
-func decode(s string) string {
-	r := transform.NewReader(strings.NewReader(s), japanese.ShiftJIS.NewEncoder())
-	b, _ := ioutil.ReadAll(r)
-	return string(b)
+func getEncodeReader(s string) *transform.Reader {
+	return transform.NewReader(strings.NewReader(s), japanese.ShiftJIS.NewDecoder())
+}
+
+func getDecodeReader(s string) *transform.Reader {
+	return transform.NewReader(strings.NewReader(s), japanese.ShiftJIS.NewEncoder())
 }
